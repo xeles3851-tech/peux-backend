@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse  # KRİTİK EKSİK BUYDU
 from pydantic import BaseModel
 from threading import Thread
 from typing import Optional
@@ -28,31 +27,29 @@ class TaskResponse(BaseModel):
     account_info: Optional[dict] = None
     error: Optional[str] = None
 
-# TASARIMIN AÇILMASI İÇİN BURASI ŞART
+# ====================== ANA SAYFA ======================
 @app.get("/")
 def home():
-    return FileResponse("index.html")
+    return {"status": "api calisiyor", "message": "Peux Backend aktif"}
 
 @app.get("/favicon.ico")
 def favicon():
     return Response(status_code=204)
 
+# Hesap oluşturma
 @app.get("/create-account", response_model=TaskResponse)
 def create_account():
     task_id = str(uuid.uuid4())
     user_data_dir = f"user_data_{task_id}"
     try:
         from worker import create_riot_account
-        thread = Thread(
-            target=create_riot_account,
-            args=(task_id, user_data_dir),
-            daemon=True
-        )
+        thread = Thread(target=create_riot_account, args=(task_id, user_data_dir), daemon=True)
         thread.start()
         return TaskResponse(task_id=task_id, status="queued")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Task durumu
 @app.get("/task/{task_id}", response_model=TaskResponse)
 def get_task_status(task_id: str):
     result_file = f"results/{task_id}.json"
