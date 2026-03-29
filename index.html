@@ -52,8 +52,7 @@
   <script>
     gsap.to(".shape", { x: () => Math.random()*200-100, y: () => Math.random()*200-100, scale: () => Math.random()*0.5+0.75, rotation: 360, repeat: -1, yoyo: true, duration: () => Math.random()*3+2, ease: "sine.inOut", stagger: 0.5 });
 
-    const API_URL = 'https://peux-backend-production.up.railway.app';   // ← BURASI GÜNCELLENDİ
-
+    const API_URL = window.location.origin;
     // ... (geri kalan script tamamen aynı, önceki mesajımdaki uzun script'i buraya yapıştırıyorum)
 
     const startButton = document.getElementById('startButton');
