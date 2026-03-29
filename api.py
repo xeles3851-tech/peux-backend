@@ -52,9 +52,9 @@ def create_account():
     task_id = str(uuid.uuid4())
     user_data_dir = f"user_data_{task_id}"
     try:
-        from worker import create_demo_account
+        from worker import create_riot_account
         thread = Thread(
-            target=create_demo_account,
+            target=create_riot_account,
             args=(task_id, user_data_dir),
             daemon=True
         )
