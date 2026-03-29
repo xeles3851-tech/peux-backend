@@ -11,8 +11,10 @@ import uvicorn
 
 app = FastAPI()
 
+# Klasör oluştur
 os.makedirs("results", exist_ok=True)
 
+# CORS ayarları (her yerden erişim)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Logging
 logging.basicConfig(
     filename="api.log",
     level=logging.INFO,
@@ -33,15 +36,21 @@ class TaskResponse(BaseModel):
     account_info: Optional[dict] = None
     error: Optional[str] = None
 
+# ====================== YENİ ROOT ENDPOINT ======================
+@app.get("/")
+def home():
+    return {"status": "api calisiyor"}
+
+# Favicon hatası için
 @app.get("/favicon.ico")
 def favicon():
     return Response(status_code=204)
 
+# Hesap oluşturma
 @app.get("/create-account", response_model=TaskResponse)
 def create_account():
     task_id = str(uuid.uuid4())
     user_data_dir = f"user_data_{task_id}"
-
     try:
         from worker import create_demo_account
         thread = Thread(
@@ -50,21 +59,18 @@ def create_account():
             daemon=True
         )
         thread.start()
-
         logging.info(f"Demo worker started for task {task_id}")
         return TaskResponse(task_id=task_id, status="queued")
-
     except Exception as e:
         logging.error(f"Worker başlatılamadı: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Task durum kontrolü
 @app.get("/task/{task_id}", response_model=TaskResponse)
 def get_task_status(task_id: str):
     result_file = f"results/{task_id}.json"
-
     if not os.path.exists(result_file):
         raise HTTPException(status_code=404, detail="Task not found or still processing")
-
     try:
         with open(result_file, "r", encoding="utf-8") as f:
             result = json.load(f)
@@ -74,5 +80,7 @@ def get_task_status(task_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-port = int(os.getenv("PORT", 8000))
-uvicorn.run(app, host="0.0.0.0", port=port)
+# ====================== UYGULAMAYI BAŞLAT ======================
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
