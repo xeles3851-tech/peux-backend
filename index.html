@@ -29,7 +29,7 @@
     <div class="w-full max-w-md bg-gray-900 bg-opacity-50 p-8 rounded-lg shadow-lg backdrop-blur-md">
       <div class="mb-6">
         <label for="accountCount" class="block text-sm font-medium mb-2">Kaç Adet Hesap Oluşturulacak?</label>
-        <input type="number" id="accountCount" min="1" value="10" class="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="number" id="accountCount" min="1" value="5" class="w-full px-4 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
       <button id="startButton" class="glow-button w-full px-4 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 text-lg">🚀 Hesapları Oluştur</button>
     </div>
@@ -53,6 +53,8 @@
     gsap.to(".shape", { x: () => Math.random()*200-100, y: () => Math.random()*200-100, scale: () => Math.random()*0.5+0.75, rotation: 360, repeat: -1, yoyo: true, duration: () => Math.random()*3+2, ease: "sine.inOut", stagger: 0.5 });
 
     const API_URL = 'https://peux-backend-production.up.railway.app';
+
+    console.log("✅ Script yüklendi. API_URL:", API_URL);
 
     const startButton = document.getElementById('startButton');
     const accountCountInput = document.getElementById('accountCount');
@@ -79,24 +81,19 @@
       return username;
     }
 
-    downloadBtn.addEventListener('click', () => {
-      if (accounts.length === 0) return alert('Henüz hesap yok!');
-      const txt = accounts.map(a => `${a.username}:${a.password}`).join('\n');
-      const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `peux_hesaplar_${new Date().toISOString().slice(0,10)}.txt`;
-      a.click(); URL.revokeObjectURL(url);
-      downloadBtn.textContent = '✅ İndirildi!';
-      setTimeout(() => downloadBtn.innerHTML = 'TXT İndir', 2000);
-    });
-
+    // DEBUG BUTONU
     startButton.addEventListener('click', async () => {
+      console.log("🚀 Başlat butonuna basıldı");
       const count = parseInt(accountCountInput.value);
-      if (!count || count < 1) return alert('Geçerli sayı gir!');
+      console.log("Hesap sayısı:", count);
+
+      if (!count || count < 1) {
+        alert('Geçerli sayı gir!');
+        return;
+      }
 
       startButton.disabled = true;
-      statusDiv.textContent = 'Hesaplar oluşturuluyor...';
+      statusDiv.textContent = 'Hesaplar oluşturuluyor... (debug mod)';
       resultList.innerHTML = '';
       accountCounter = 0;
       accounts = [];
@@ -104,10 +101,12 @@
 
       try {
         for (let i = 0; i < count; i++) {
+          console.log(`[${i+1}/${count}] Hesap oluşturuluyor...`);
           await createAndPollAccount();
         }
         statusDiv.innerHTML = `✅ <span class="text-emerald-400">${count} hesap başarıyla oluşturuldu!</span>`;
       } catch (e) {
+        console.error("❌ Hata:", e);
         statusDiv.textContent = `❌ Hata: ${e.message}`;
       } finally {
         startButton.disabled = false;
@@ -116,24 +115,40 @@
 
     async function createAndPollAccount() {
       const generatedUsername = generateUniqueUsername();
-      const res = await fetch(`${API_URL}/create-account`, { method: 'GET', headers: { 'Accept': 'application/json' } });
-      if (!res.ok) throw new Error('API hatası');
-      const { task_id } = await res.json();
+      console.log("📤 /create-account isteği gönderiliyor...");
+
+      const res = await fetch(`${API_URL}/create-account`, { 
+        method: 'GET', 
+        headers: { 'Accept': 'application/json' } 
+      });
+
+      console.log("📥 Response status:", res.status);
+
+      if (!res.ok) throw new Error(`API hatası: ${res.status}`);
+
+      const data = await res.json();
+      console.log("📦 Gelen veri:", data);
+
+      const task_id = data.task_id;
       await pollTaskStatus(task_id, generatedUsername);
     }
 
     async function pollTaskStatus(taskId, generatedUsername) {
+      console.log(`🔄 Task poll başlıyor: ${taskId}`);
       while (true) {
         const res = await fetch(`${API_URL}/task/${taskId}`, { method: 'GET', headers: { 'Accept': 'application/json' } });
+        console.log(`📥 Poll status: ${res.status}`);
+
         if (res.status === 200) {
           const data = await res.json();
+          console.log("✅ Task sonucu:", data);
+
           if (data.status === 'success' && data.account_info) {
             const account = { ...data.account_info };
             account.username = generatedUsername;
             addAccountToTable(account);
             return;
           }
-          if (data.status === 'failed') throw new Error(data.error || 'Başarısız');
         }
         await new Promise(r => setTimeout(r, 1500));
       }
